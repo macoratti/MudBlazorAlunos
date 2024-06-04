@@ -1,0 +1,117 @@
+﻿@page "/alunos"
+@rendermode InteractiveServer
+
+<MudDialogProvider/>
+<MudSnackbarProvider />
+<MudCard Elevation="25">
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h5" Color="Color.Primary">Incluir e Editar Alunos</MudText>
+        </CardHeaderContent>
+        <CardHeaderActions>
+            <MudIconButton Icon="@Icons.Material.Filled.Settings" Color="Color.Default" />
+        </CardHeaderActions>
+    </MudCardHeader>
+    <MudCardContent>
+        <MudTextField @bind-Value="aluno.Nome" Label="Nome" Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
+        <MudTextField @bind-Value="aluno.Email" Label="Email" Variant="Variant.Text" Margin="Margin.Normal" ></MudTextField>
+        <MudNumericField @bind-Value="aluno.Idade" Label="Idade" Variant="Variant.Filled" Margin="Margin.Normal"></MudNumericField>
+        <br />
+        <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="Salvar">Salvar Aluno</MudButton>
+    </MudCardContent>
+</MudCard>
+
+<br />
+
+<MudTable Elevation="25" Striped="true" Items="alunos" Filter="new Func<Aluno, bool>(Procurar)">
+    <ToolBarContent>
+        <MudText Typo="Typo.h5">Alunos</MudText>
+        <MudSpacer />
+        <MudTextField @bind-Value="criterio"
+                      Placeholder="Procurar alunos..."
+                      Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search"
+                      IconSize="Size.Medium"
+                      Class="mt-0">
+        </MudTextField>
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh>Nome</MudTh>
+        <MudTh>Email</MudTh>
+        <MudTh>Idade</MudTh>
+        <MudTh>Operação</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Nome">@context.Nome</MudTd>
+        <MudTd DataLabel="Email">@context.Email</MudTd>
+        <MudTd DataLabel="Idade">@context.Idade</MudTd>
+        <MudTd DataLabel="">
+            <MudFab @onclick="@(e => Editar(@context.Id))" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Edit" Size="Size.Small" IconSize="Size.Small" />
+            <MudFab @onclick="@(e => ConfirmaExclusao(@context.Id))" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Delete" Size="Size.Small" IconSize="Size.Small" />
+        </MudTd>
+    </RowTemplate>
+</MudTable>
+
+@code {
+    private string criterio = "";
+    private Aluno aluno = new Aluno();
+    private IEnumerable<Aluno> alunos = new List<Aluno>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await GetAlunos();
+    }
+
+    private async Task<IEnumerable<Aluno>> GetAlunos()
+    {
+        alunos = await alunoService.GetAlunos();
+        return alunos;
+    }
+
+    private bool Procurar(Aluno aluno)
+    {
+        if (string.IsNullOrWhiteSpace(criterio)) return true;
+
+        if (aluno.Nome!.Contains(criterio, StringComparison.OrdinalIgnoreCase)
+            || aluno.Email!.Contains(criterio, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+        return false;
+    }
+
+    private async Task Salvar()
+    {
+        await alunoService.SalvarAluno(aluno);
+        aluno = new Aluno();
+        snackBar.Configuration.PositionClass = Defaults.Classes.Position.TopCenter;
+        snackBar.Add("Aluno Salvo.", Severity.Success);
+        await GetAlunos();
+        StateHasChanged();
+    }
+
+    private void Editar(int id)
+    {
+        aluno = alunos.FirstOrDefault(c => c.Id == id)!;
+    }
+
+    private async Task ConfirmaExclusao(int id)
+    {
+        bool? result = await _dialogService.ShowMessageBox(
+        "Confirma exclusão",
+        "A exclusão não pode ser desfeita!",
+        yesText: "Deleta", cancelText: "Cancela");
+
+        if (result ?? false)
+        {
+            await Deleta(id);
+        }
+    }
+
+    private async Task Deleta(int id)
+    {
+        await alunoService.DeletarAluno(id);
+        snackBar.Add("Aluno Excluído.", Severity.Warning);
+        await GetAlunos();
+    }
+}
